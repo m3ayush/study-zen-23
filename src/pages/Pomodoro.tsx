@@ -220,15 +220,22 @@ export default function Pomodoro() {
                   <div className="text-center p-4 bg-success/10 rounded-lg">
                     <p className="text-sm text-muted-foreground">Total Focus Time</p>
                     <p className="text-3xl font-bold text-success">
-                      {sessions.filter(s => s.completed).reduce((sum, s) => sum + s.duration, 0)} min
+                      {(() => {
+                        const totalMinutes = sessions.filter(s => s.completed).reduce((sum, s) => sum + s.duration, 0);
+                        const mins = Math.floor(totalMinutes);
+                        const secs = Math.round((totalMinutes - mins) * 60);
+                        return `${mins}m ${secs}s`;
+                      })()}
                     </p>
                   </div>
                   {sessions.map((session) => {
                     const startTime = new Date(session.started_at);
                     const completedTime = session.completed_at ? new Date(session.completed_at) : null;
-                    const actualDuration = completedTime 
-                      ? Math.round((completedTime.getTime() - startTime.getTime()) / 60000)
-                      : session.duration;
+                    const actualDurationMs = completedTime 
+                      ? completedTime.getTime() - startTime.getTime()
+                      : session.duration * 60000;
+                    const actualMinutes = Math.floor(actualDurationMs / 60000);
+                    const actualSeconds = Math.floor((actualDurationMs % 60000) / 1000);
                     
                     return (
                       <div
@@ -242,7 +249,7 @@ export default function Pomodoro() {
                             }`}
                           />
                           <span className="text-sm">
-                            {actualDuration} min session {session.completed ? "completed" : "in progress"}
+                            {actualMinutes}m {actualSeconds}s {session.completed ? "completed" : "in progress"}
                           </span>
                         </div>
                         <span className="text-xs text-muted-foreground">

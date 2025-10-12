@@ -2,13 +2,14 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Pin, Trash2, Maximize2 } from "lucide-react";
+import { Plus, Pin, Trash2, Maximize2, Hash } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 type Note = {
   id: string;
@@ -26,6 +27,7 @@ export default function Notes() {
   const [editOpen, setEditOpen] = useState(false);
   const [editingNote, setEditingNote] = useState<Note | null>(null);
   const [isExpanded, setIsExpanded] = useState(false);
+  const [selectedTag, setSelectedTag] = useState<string>("all");
   const { toast } = useToast();
 
   const [formData, setFormData] = useState({
@@ -57,6 +59,16 @@ export default function Notes() {
 
     if (data) setNotes(data);
   };
+
+  // Get all unique tags from notes
+  const allTags = Array.from(
+    new Set(notes.flatMap((note) => note.tags || []))
+  ).sort();
+
+  // Filter notes based on selected tag
+  const filteredNotes = selectedTag === "all" 
+    ? notes 
+    : notes.filter((note) => note.tags?.includes(selectedTag));
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -172,13 +184,30 @@ export default function Notes() {
           <h1 className="text-3xl font-bold mb-2">Notes</h1>
           <p className="text-muted-foreground">Capture your thoughts and study notes</p>
         </div>
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild>
-            <Button className="gradient-primary">
-              <Plus className="w-4 h-4 mr-2" />
-              New Note
-            </Button>
-          </DialogTrigger>
+        <div className="flex items-center gap-3">
+          {allTags.length > 0 && (
+            <Select value={selectedTag} onValueChange={setSelectedTag}>
+              <SelectTrigger className="w-[180px]">
+                <Hash className="w-4 h-4 mr-2" />
+                <SelectValue placeholder="Filter by tag" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Notes</SelectItem>
+                {allTags.map((tag) => (
+                  <SelectItem key={tag} value={tag}>
+                    #{tag}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+          <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+              <Button className="gradient-primary">
+                <Plus className="w-4 h-4 mr-2" />
+                New Note
+              </Button>
+            </DialogTrigger>
           <DialogContent className="bg-popover">
             <DialogHeader>
               <DialogTitle>Create New Note</DialogTitle>
@@ -218,18 +247,23 @@ export default function Notes() {
               </Button>
             </form>
           </DialogContent>
-        </Dialog>
+          </Dialog>
+        </div>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {notes.length === 0 ? (
+        {filteredNotes.length === 0 ? (
           <Card className="card-shadow col-span-full">
             <CardContent className="py-12 text-center">
-              <p className="text-muted-foreground">No notes yet. Create your first note!</p>
+              <p className="text-muted-foreground">
+                {selectedTag === "all" 
+                  ? "No notes yet. Create your first note!" 
+                  : `No notes found with tag #${selectedTag}`}
+              </p>
             </CardContent>
           </Card>
         ) : (
-          notes.map((note) => (
+          filteredNotes.map((note) => (
             <Card
               key={note.id}
               className="card-shadow transition-smooth hover:elevated-shadow cursor-pointer"
