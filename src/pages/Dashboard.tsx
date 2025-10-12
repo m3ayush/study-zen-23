@@ -1,8 +1,19 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { CheckSquare, Calendar, Timer, FileText } from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
+import { CheckSquare, Calendar, Timer, FileText, Clock } from "lucide-react";
+import { formatDistanceToNow, format, isToday, isTomorrow } from "date-fns";
+import { Badge } from "@/components/ui/badge";
+
+type ScheduleItem = {
+  id: string;
+  title: string;
+  type: "task" | "exam";
+  time: string;
+  course?: string;
+  priority?: string;
+  completed?: boolean;
+};
 
 export default function Dashboard() {
   const [stats, setStats] = useState({
@@ -11,6 +22,7 @@ export default function Dashboard() {
     nextExam: null as any,
     focusMinutes: 0,
   });
+  const [schedule, setSchedule] = useState<ScheduleItem[]>([]);
 
   useEffect(() => {
     loadDashboardData();
@@ -62,6 +74,47 @@ export default function Dashboard() {
       nextExam: exams?.[0] || null,
       focusMinutes: totalMinutes,
     });
+
+    // Build today's schedule
+    const scheduleItems: ScheduleItem[] = [];
+    
+    // Add today's tasks with due dates
+    const todayTasks = tasks?.filter(task => {
+      if (!task.due_date) return false;
+      const dueDate = new Date(task.due_date);
+      return isToday(dueDate) || (new Date(task.due_date) < new Date() && !task.completed);
+    }) || [];
+    
+    todayTasks.forEach(task => {
+      scheduleItems.push({
+        id: task.id,
+        title: task.title,
+        type: "task",
+        time: task.due_date ? format(new Date(task.due_date), "HH:mm") : "No time",
+        course: task.course || undefined,
+        priority: task.priority,
+        completed: task.completed,
+      });
+    });
+
+    // Add today's exams
+    const todayExams = exams?.filter(exam => 
+      isToday(new Date(exam.exam_date)) || isTomorrow(new Date(exam.exam_date))
+    ) || [];
+    
+    todayExams.forEach(exam => {
+      scheduleItems.push({
+        id: exam.id,
+        title: exam.title,
+        type: "exam",
+        time: format(new Date(exam.exam_date), "HH:mm"),
+        course: exam.course,
+      });
+    });
+
+    // Sort by time
+    scheduleItems.sort((a, b) => a.time.localeCompare(b.time));
+    setSchedule(scheduleItems);
   };
 
   return (
@@ -143,9 +196,45 @@ export default function Dashboard() {
           <CardTitle>Today's Schedule</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-muted-foreground text-center py-8">
-            Your tasks and exams for today will appear here
-          </p>
+          {schedule.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-8">
+              No tasks or exams scheduled for today
+            </p>
+          ) : (
+            <div className="space-y-3">
+              {schedule.map((item) => (
+                <div
+                  key={item.id}
+                  className="flex items-center justify-between p-3 bg-secondary rounded-lg"
+                >
+                  <div className="flex items-center gap-3">
+                    {item.type === "task" ? (
+                      <CheckSquare className={`w-5 h-5 ${item.completed ? "text-success" : "text-primary"}`} />
+                    ) : (
+                      <Calendar className="w-5 h-5 text-warning" />
+                    )}
+                    <div>
+                      <p className="font-medium">{item.title}</p>
+                      {item.course && (
+                        <p className="text-xs text-muted-foreground">{item.course}</p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {item.priority && item.type === "task" && (
+                      <Badge variant={item.priority === "high" ? "destructive" : "secondary"}>
+                        {item.priority}
+                      </Badge>
+                    )}
+                    <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                      <Clock className="w-4 h-4" />
+                      {item.time}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

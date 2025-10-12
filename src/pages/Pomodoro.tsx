@@ -223,29 +223,37 @@ export default function Pomodoro() {
                       {sessions.filter(s => s.completed).reduce((sum, s) => sum + s.duration, 0)} min
                     </p>
                   </div>
-                  {sessions.map((session) => (
-                    <div
-                      key={session.id}
-                      className="flex items-center justify-between p-3 bg-secondary rounded-lg"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div
-                          className={`w-2 h-2 rounded-full ${
-                            session.completed ? "bg-success" : "bg-warning"
-                          }`}
-                        />
-                        <span className="text-sm">
-                          {session.duration} min session
+                  {sessions.map((session) => {
+                    const startTime = new Date(session.started_at);
+                    const completedTime = session.completed_at ? new Date(session.completed_at) : null;
+                    const actualDuration = completedTime 
+                      ? Math.round((completedTime.getTime() - startTime.getTime()) / 60000)
+                      : session.duration;
+                    
+                    return (
+                      <div
+                        key={session.id}
+                        className="flex items-center justify-between p-3 bg-secondary rounded-lg"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div
+                            className={`w-2 h-2 rounded-full ${
+                              session.completed ? "bg-success" : "bg-warning"
+                            }`}
+                          />
+                          <span className="text-sm">
+                            {actualDuration} min session {session.completed ? "completed" : "in progress"}
+                          </span>
+                        </div>
+                        <span className="text-xs text-muted-foreground">
+                          {startTime.toLocaleTimeString([], {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
                         </span>
                       </div>
-                      <span className="text-xs text-muted-foreground">
-                        {new Date(session.started_at).toLocaleTimeString([], {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </span>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </>
               )}
             </div>

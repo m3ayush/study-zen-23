@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Pin, Trash2 } from "lucide-react";
+import { Plus, Pin, Trash2, Maximize2 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -23,9 +23,18 @@ type Note = {
 export default function Notes() {
   const [notes, setNotes] = useState<Note[]>([]);
   const [open, setOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editingNote, setEditingNote] = useState<Note | null>(null);
+  const [isExpanded, setIsExpanded] = useState(false);
   const { toast } = useToast();
 
   const [formData, setFormData] = useState({
+    title: "",
+    content: "",
+    tags: "",
+  });
+
+  const [editFormData, setEditFormData] = useState({
     title: "",
     content: "",
     tags: "",
@@ -113,6 +122,49 @@ export default function Notes() {
     }
   };
 
+  const openEditDialog = (note: Note) => {
+    setEditingNote(note);
+    setEditFormData({
+      title: note.title || "",
+      content: note.content,
+      tags: note.tags?.join(", ") || "",
+    });
+    setIsExpanded(false);
+    setEditOpen(true);
+  };
+
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingNote) return;
+
+    const tags = editFormData.tags
+      .split(",")
+      .map((tag) => tag.trim())
+      .filter((tag) => tag.length > 0);
+
+    const { error } = await supabase
+      .from("notes")
+      .update({
+        title: editFormData.title || null,
+        content: editFormData.content,
+        tags: tags.length > 0 ? tags : null,
+      })
+      .eq("id", editingNote.id);
+
+    if (error) {
+      toast({
+        variant: "destructive",
+        title: "Error updating note",
+        description: error.message,
+      });
+    } else {
+      toast({ title: "Note updated successfully!" });
+      setEditOpen(false);
+      setEditingNote(null);
+      loadNotes();
+    }
+  };
+
   return (
     <div className="p-6 space-y-6 animate-fade-in">
       <div className="flex items-center justify-between">
@@ -180,7 +232,8 @@ export default function Notes() {
           notes.map((note) => (
             <Card
               key={note.id}
-              className="card-shadow transition-smooth hover:elevated-shadow"
+              className="card-shadow transition-smooth hover:elevated-shadow cursor-pointer"
+              onClick={() => openEditDialog(note)}
             >
               <CardHeader>
                 <div className="flex items-start justify-between gap-2">
@@ -192,7 +245,10 @@ export default function Notes() {
                       variant="ghost"
                       size="icon"
                       className="h-8 w-8"
-                      onClick={() => togglePin(note)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        togglePin(note);
+                      }}
                     >
                       <Pin
                         className={`w-4 h-4 ${
@@ -204,7 +260,10 @@ export default function Notes() {
                       variant="ghost"
                       size="icon"
                       className="h-8 w-8 text-destructive hover:text-destructive"
-                      onClick={() => deleteNote(note.id)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        deleteNote(note.id);
+                      }}
                     >
                       <Trash2 className="w-4 h-4" />
                     </Button>
@@ -235,6 +294,57 @@ export default function Notes() {
           ))
         )}
       </div>
+
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent className={`bg-popover ${isExpanded ? "max-w-4xl" : "max-w-2xl"}`}>
+          <DialogHeader>
+            <div className="flex items-center justify-between">
+              <DialogTitle>Edit Note</DialogTitle>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setIsExpanded(!isExpanded)}
+              >
+                <Maximize2 className="w-4 h-4" />
+              </Button>
+            </div>
+          </DialogHeader>
+          <form onSubmit={handleEditSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-title">Title (optional)</Label>
+              <Input
+                id="edit-title"
+                value={editFormData.title}
+                onChange={(e) => setEditFormData({ ...editFormData, title: e.target.value })}
+                placeholder="Give your note a title"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-content">Content</Label>
+              <Textarea
+                id="edit-content"
+                value={editFormData.content}
+                onChange={(e) => setEditFormData({ ...editFormData, content: e.target.value })}
+                rows={isExpanded ? 20 : 8}
+                placeholder="Start typing your note..."
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-tags">Tags (comma separated)</Label>
+              <Input
+                id="edit-tags"
+                value={editFormData.tags}
+                onChange={(e) => setEditFormData({ ...editFormData, tags: e.target.value })}
+                placeholder="e.g., math, study, important"
+              />
+            </div>
+            <Button type="submit" className="w-full gradient-primary">
+              Update Note
+            </Button>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
