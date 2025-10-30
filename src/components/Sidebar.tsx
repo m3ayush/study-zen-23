@@ -21,9 +21,9 @@ const navigation = [
 export function Sidebar() {
   return (
     <aside className="w-64 border-r border-border bg-sidebar flex-col hidden lg:flex">
-      <div className="p-6 border-b border-sidebar-border">
-        <h1 className="text-2xl font-bold gradient-primary bg-clip-text text-transparent">
-          StudyHub
+      <div className="p-6 border-b border-sidebar-border rounded">
+        <h1 className="text-2xl font-bold gradient-primary bg-clip-text text-transparent rounded text-white pl-14 font-serif">
+          Planora
         </h1>
       </div>
       <nav className="flex-1 p-4 space-y-1">

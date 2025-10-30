@@ -84,8 +84,8 @@ export default function Auth() {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/5 p-4">
       <Card className="w-full max-w-md card-shadow">
         <CardHeader className="space-y-2 text-center">
-          <CardTitle className="text-3xl font-bold gradient-primary bg-clip-text text-transparent">
-            StudyHub
+          <CardTitle className="text-white text-3xl font-bold gradient-primary bg-clip-text text-transparent">
+            Planora
           </CardTitle>
           <CardDescription>
             {isLogin ? "Welcome back! Sign in to continue" : "Create your account to get started"}
