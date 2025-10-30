@@ -1,4 +1,4 @@
-import { Search, Bell, Menu, Moon, Sun } from "lucide-react";
+import { Search, Bell, Menu, Moon, Sun, X } from "lucide-react";
 import { Input } from "./ui/input";
 import { Button } from "./ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
@@ -53,7 +53,7 @@ export function Header() {
       .limit(5);
 
     // Load overdue tasks as notifications
-    const { data: tasks } = await supabase
+    const { data: overdueTasks } = await supabase
       .from("tasks")
       .select("*")
       .eq("user_id", user.id)
@@ -61,12 +61,26 @@ export function Header() {
       .lt("due_date", new Date().toISOString())
       .limit(5);
 
+    // Load upcoming tasks (within next 7 days)
+    const sevenDaysFromNow = new Date();
+    sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7);
+    
+    const { data: upcomingTasks } = await supabase
+      .from("tasks")
+      .select("*")
+      .eq("user_id", user.id)
+      .eq("completed", false)
+      .gte("due_date", new Date().toISOString())
+      .lte("due_date", sevenDaysFromNow.toISOString())
+      .order("due_date", { ascending: true })
+      .limit(5);
+
     const notifs: Notification[] = [];
     
     exams?.forEach(exam => {
       const daysUntil = Math.ceil((new Date(exam.exam_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
       notifs.push({
-        id: exam.id,
+        id: `exam-${exam.id}`,
         title: `Upcoming Exam: ${exam.course}`,
         message: `${exam.title} in ${daysUntil} days`,
         time: new Date(exam.exam_date).toLocaleDateString(),
@@ -74,9 +88,9 @@ export function Header() {
       });
     });
 
-    tasks?.forEach(task => {
+    overdueTasks?.forEach(task => {
       notifs.push({
-        id: task.id,
+        id: `overdue-${task.id}`,
         title: "Overdue Task",
         message: task.title,
         time: new Date(task.due_date).toLocaleDateString(),
@@ -84,8 +98,24 @@ export function Header() {
       });
     });
 
+    upcomingTasks?.forEach(task => {
+      const daysUntil = Math.ceil((new Date(task.due_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+      notifs.push({
+        id: `upcoming-${task.id}`,
+        title: `Upcoming Task: ${task.course || 'General'}`,
+        message: `${task.title} due in ${daysUntil} days`,
+        time: new Date(task.due_date).toLocaleDateString(),
+        read: false,
+      });
+    });
+
     setNotifications(notifs);
     setUnreadCount(notifs.length);
+  };
+
+  const removeNotification = (id: string) => {
+    setNotifications(prev => prev.filter(notif => notif.id !== id));
+    setUnreadCount(prev => Math.max(0, prev - 1));
   };
 
   const toggleTheme = () => {
@@ -148,9 +178,17 @@ export function Header() {
                 notifications.map((notif) => (
                   <div
                     key={notif.id}
-                    className="p-3 bg-secondary rounded-lg space-y-1"
+                    className="p-3 bg-secondary rounded-lg space-y-1 relative group"
                   >
-                    <p className="font-medium text-sm">{notif.title}</p>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="absolute top-2 right-2 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={() => removeNotification(notif.id)}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                    <p className="font-medium text-sm pr-8">{notif.title}</p>
                     <p className="text-sm text-muted-foreground">{notif.message}</p>
                     <p className="text-xs text-muted-foreground">{notif.time}</p>
                   </div>
